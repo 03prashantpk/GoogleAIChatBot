@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generative AI Chat</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://code.responsivevoice.org/responsivevoice.js?key=mclVSox9"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h2>Users</h2>
+      <ul class="user-list">
+        <li class="user">User 1</li>
+        <li class="user">User 2</li>
+        <li class="user">User 3</li>
+        <li class="user">User 4</li>
+        <li class="user">User 5</li>
+        <li class="user">User 6</li>
+        <li class="user">User 7</li>
+      </ul>
+    </div>
+    <div class="chat-section">
+      <h1>Generative AI Chat</h1>
+      <div class="chat-box" id="chatBox"></div>
+      <div class="chat-input-container">
+        <input type="text" id="chatInput" class="chat-input" placeholder="Type your message here...">
+        <button id="chatSubmit" class="chat-submit">Send</button>
+      </div>
+      <div class="voice-toggle">
+        <label for="voiceToggle">Voice Output:</label>
+        <input type="checkbox" id="voiceToggle">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const chatBox = document.getElementById('chatBox');
+    const chatInput = document.getElementById('chatInput');
+    const chatSubmit = document.getElementById('chatSubmit');
+    const voiceToggle = document.getElementById('voiceToggle');
+
+    chatInput.addEventListener('keypress', async (e) => {
+      if (e.key === 'Enter') {
+        await sendMessage();
+      }
+    });
+
+    let history = [
+      {
+        role: "user",
+        parts: [{ text: "hi" }],
+      },
+      {
+        role: "model",
+        parts: [{ text: "Hi! 👋  How can I help you today? 😊 \n" }],
+      },
+      {
+        role: "user",
+        parts: [{ text: "hello" }],
+      },
+      {
+        role: "model",
+        parts: [{ text: "Hello! 👋 It's nice to hear from you. What can I do for you today? 😊 \n" }],
+      },
+    ];
+
+    const updateChatBox = (message, sender) => {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${sender}`;
+      messageDiv.textContent = message;
+      chatBox.appendChild(messageDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    const showTypingStatus = () => {
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'typing';
+      typingDiv.id = 'typing';
+      typingDiv.textContent = 'AI is typing...';
+      chatBox.appendChild(typingDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    const removeTypingStatus = () => {
+      const typingDiv = document.getElementById('typing');
+      if (typingDiv) {
+        chatBox.removeChild(typingDiv);
+      }
+    };
+
+    const playAudio = async (text) => {
+      if (voiceToggle.checked && text) {
+        await new Promise(resolve => {
+          // remove the emoji from the text
+          text = text.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '');
+          responsiveVoice.speak(text, "Hindi Female", { onend: resolve, rate: 0.9, pitch: 1});
+          
+        });
+      }
+    };
+
+    const sendMessage = async () => {
+      const message = chatInput.value.trim();
+      if (!message) return;
+
+      updateChatBox(message, 'user');
+      chatInput.value = '';
+
+      history.push({ role: "user", parts: [{ text: message }] });
+
+      showTypingStatus();
+
+      try {
+        const response = await fetch('http://localhost:3007/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, history })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          alert(error.error);
+          removeTypingStatus();
+          return;
+        }
+
+        const data = await response.json();
+        removeTypingStatus();
+        updateChatBox(data.text, 'model');
+        await playAudio(data.text);
+
+        history.push({ role: "model", parts: [{ text: data.text }] });
+      } catch (error) {
+        removeTypingStatus();
+        console.error('Error:', error);
+      }
+    };
+
+    chatSubmit.addEventListener('click', sendMessage);
+  </script>
+</body>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f8ff;
+  }
+
+  .container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    max-width: 1200px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+
+  .sidebar {
+    width: 250px;
+    background-color: #007bff;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+
+  .sidebar h2 {
+    margin: 0;
+    margin-bottom: 20px;
+    font-size: 20px;
+    text-align: center;
+  }
+
+  .user-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .user {
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #0056b3;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  .user:hover {
+    background-color: #003f7f;
+  }
+
+  .chat-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+
+  h1 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+  }
+
+  .chat-box {
+    border: 1px solid #ccc;
+    padding: 10px;
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    background-color: #fafafa;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-input-container {
+    display: flex;
+  }
+
+  .chat-input {
+    width: calc(100% - 60px);
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-right: 10px;
+    box-sizing: border-box;
+  }
+
+  .chat-submit {
+    padding: 10px 20px;
+    border: none;
+    background-color: #ffd700;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  .chat-submit:hover {
+    background-color: #ffc107;
+  }
+
+  .voice-toggle {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+  }
+
+  .voice-toggle label {
+    margin-right: 10px;
+  }
+
+  .message {
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 5px;
+    max-width: 70%;
+    animation: floatIn 0.5s ease;
+  }
+
+  .message.user {
+    background-color: #ffd700;
+    color: white;
+    align-self: flex-end;
+    text-align: right;
+  }
+
+  .message.model {
+    background-color: #e9ecef;
+    color: #333;
+    align-self: flex-start;
+  }
+
+  .typing {
+    font-style: italic;
+    color: #888;
+  }
+
+  @keyframes floatIn {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+</style>
+</html>
